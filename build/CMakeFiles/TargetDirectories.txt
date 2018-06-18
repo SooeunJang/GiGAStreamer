@@ -1,0 +1,3 @@
+/home/gigasurv/rest_framework/micro-service/build/CMakeFiles/rebuild_cache.dir
+/home/gigasurv/rest_framework/micro-service/build/CMakeFiles/edit_cache.dir
+/home/gigasurv/rest_framework/micro-service/build/CMakeFiles/glsm.dir
