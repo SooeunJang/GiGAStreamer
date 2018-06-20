@@ -1,76 +1,84 @@
-//
-//  Created by Ivan Mejia on 12/24/16.
-//
-// MIT License
-//
-// Copyright (c) 2016 ivmeroLabs.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
-
 
 #include <iostream>
 #include <stdlib.h>
-
+#include <thread>
 #include <usr_interrupt_handler.hpp>
-#include <runtime_utils.hpp>
+#include <map>
 
-#include "microsvc_controller.hpp"
+#include "controller_manager.hpp"
+#include "stream_controller.hpp"
+#include "machine_controller.hpp"
 
-#define MAJOR_VERSION "0"
-#define MINOR_VERSION "1"
-#define DEFAULT_PORT_NUM "8087"
-#define SERVER_IP_ADDR "221.148.54.130"
-#define DAFAULT_CONNECTION_TIMEOUT 1 //sec
+
+#define USERCON
+#define LOG
+#define EXTERNAL_IP_BLOCK 0
+#define DEFAULT_CONFIGFILE_PATH "./glsm.config"
 
 using namespace web;
 using namespace cfx;
+using namespace glsm;
 
-int main(int argc, const char * argv[]) {
+ControllerManager* controllerManager = NULL;
+std::mutex cfx::mapmutex;
+boost::shared_ptr<text_sink> Log::pSink = NULL;
 
-	utility::string_t port = U(DEFAULT_PORT_NUM);
-	utility::seconds t(DAFAULT_CONNECTION_TIMEOUT);
-	if(argc == 2)
-	{
-		port = argv[1];
-	}
-	utility::string_t defaultRoute = "http://host_auto_ip4:" + port;// + "/v" + MINOR_VERSION;
+int main(int argc, char * argv[]) {
+	utility::seconds connection_timeout(DAFAULT_CONNECTION_TIMEOUT);
+#if EXTERNAL_IP_BLOCK
+	utility::string_t defaultRoute = "http://host_auto_ip4:";
+#else
+	utility::string_t defaultRoute = "http://unspecified:";
+#endif
 
+#ifdef LOG
+	Log::initialize();
+	SystemMonitorConfiguration monitor_config;
+	RuntimeUtils* runtimeUtils = new RuntimeUtils(&monitor_config, true);
+	runtimeUtils->initialize_monitoring();
+#endif
+#ifdef USERCON
 	InterruptHandler::hookSIGINT();
-
-	MicroserviceController server;
-
+#endif
 	try {
-		server.setEndpoint(defaultRoute, t);
-		// wait for server initialization...
-		server.accept().wait();
-		std::cout << "GLSM now listening for requests at: " << server.endpoint() << '\n';
+		controllerManager = new ControllerManager(DEFAULT_CONFIGFILE_PATH);
+		controllerManager->initialize();
 
+		BasicController* stream_server = new StreamController(controllerManager->get_serverInfo());
+		stream_server->initialize(defaultRoute);
+		controllerManager->add_server("stream", stream_server);
+
+		BasicController* machine_server = new MachineController(controllerManager->get_serverInfo());
+		machine_server->initialize(defaultRoute);
+		controllerManager->add_server("machine", machine_server);
+
+		controllerManager->run_services();
+		controllerManager->set_streamer();
+		controllerManager->run_streamer();
+
+		LOG_NOTI("GLSM Initializing complete !!");
+
+#ifdef USERCON
 		InterruptHandler::waitForUserInterrupt();
-
-		server.shutdown().wait();
+#endif
 	}
 	catch(std::exception & e) {
-		std::cerr << "Error : "<<e.what() << std::endl;
+		LOG_ERR("%s", e.what());
 	}
 	catch(...) {
-		RuntimeUtils::printStackTrace();
+		RuntimeUtils::print_callStackBacktrace(NULL);
 	}
+
+	if(controllerManager->get_state() == cfx::RUNNING)
+	{
+		controllerManager->stop_streamer();
+		controllerManager->stop_services();
+	}
+#ifdef LOG
+	delete(runtimeUtils);
+	Log::stop();
+#endif
+	delete controllerManager;
+
     return 0;
 }
