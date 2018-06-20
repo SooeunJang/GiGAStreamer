@@ -1,28 +1,3 @@
-//
-//  Created by Ivan Mejia on 12/03/16.
-//
-// MIT License
-//
-// Copyright (c) 2016 ivmeroLabs. All rights reserved.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
 
 #pragma once
 
@@ -34,24 +9,59 @@
 using namespace web;
 using namespace http::experimental::listener;
 
-namespace cfx {
+namespace cfx
+{
+	typedef struct _ServerInfo
+	{
+		const char* serverName;
+		const char* serverHost;
+		const char* appName;
+		const char* appInstance;
+
+		_ServerInfo(const char* _serverName, const char* _serverHost, const char* _appName, const char* _appInstance)
+		{
+			serverName = _serverName;
+			serverHost = _serverHost;
+			appName = _appName;
+			appInstance = _appInstance;
+		}
+		const char* get_serverName() { return serverName; }
+		const char* get_serverHost() { return serverHost; }
+		const char* get_appName() { return appName; }
+		const char* get_appInstance() { return appInstance; }
+
+		void printInfo(std::iostream &ss)
+		{
+			ss<<"serverName: "<<serverName<<" , serverHost:"<<serverHost<<" , appName:"<<appName<<" , appInstance:"<<appInstance<<std::endl;
+		}
+	}ServerInfo;
+
     class BasicController {
-    protected:
-        http_listener _listener; // main micro service network endpoint
-        http_listener_config _config;
     public:
-        BasicController();
+        BasicController(const char* _serverName, const char* _serverHost, const char* _appName, const char* _appInstance);
+        BasicController(ServerInfo* _serverInfo);
+        BasicController(void);
         virtual ~BasicController();
 
-        void setEndpoint(const std::string & value, utility::seconds t);
-        std::string endpoint() const;
+        void initialize(const std::string & value, utility::seconds t);
         pplx::task<void> accept();
         pplx::task<void> shutdown();
 
-        virtual void initRestOpHandlers() { 
-            /* had to be implemented by the child class */ 
-        }
+        //getter & setter
+        ServerInfo* get_serverInfo() { return serverInfo; }
+        http_listener* get_listener() { return &_listener; }
+        http_listener_config* get_listenerConfig() { return &_config; }
+        std::string get_endpoint() const { return _listener.uri().to_string(); }
 
+    protected:
+        http_listener _listener;
+        http_listener_config _config;
+        ServerInfo* serverInfo;
         std::vector<utility::string_t> requestPath(const http_request & message);
+        json::value responseNotImpl(const http::method & method);
+        virtual void setListenerPath(uri_builder& routing_path);
+        virtual void initRestOpHandlers() = 0;
+    private:
+        void setEndpoint(const std::string & value, utility::seconds t);
     };
 }

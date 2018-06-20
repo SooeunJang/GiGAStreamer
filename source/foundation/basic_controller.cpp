@@ -1,65 +1,62 @@
-//
-//  Created by Ivan Mejia on 12/03/16.
-//
-// MIT License
-//
-// Copyright (c) 2016 ivmeroLabs. All rights reserved.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
 
 #include "basic_controller.hpp"
 #include "network_utils.hpp"
+using namespace utility;
 
 namespace cfx {
-    BasicController::BasicController() {
-
+    BasicController::BasicController(const char* _serverName, const char* _serverHost, const char* _appName, const char* _appInstance)
+    {
+    	serverInfo = new ServerInfo(_serverName, _serverHost, _appName, _appInstance);
+    }
+    BasicController::BasicController(ServerInfo* _serverInfo)
+	{
+		serverInfo = _serverInfo;
+	}
+    BasicController::BasicController(void)
+	{
+		serverInfo = NULL;
+	}
+    BasicController::~BasicController()
+    {
+    	delete serverInfo;
+    }
+    void BasicController::initialize(const std::string & value, utility::seconds t)
+    {
+    	setEndpoint(value, t);
     }
 
-    BasicController::~BasicController() {
-
+    void BasicController::setListenerPath(uri_builder& routing_path)
+    {
+    	return;
     }
+
     void BasicController::setEndpoint(const std::string & value, utility::seconds t) {
-        if(!uri::validate(value))
+
+    	if(!uri::validate(value))
         {
         	throw;
         }
-    	uri endpointURI(value);
-        uri_builder endpointBuilder;
+
+    	auto endpointURI = uri(value);
+        auto endpointBuilder = uri_builder();
 
         endpointBuilder.set_scheme(endpointURI.scheme());
         if (endpointURI.host() == "host_auto_ip4") {
-            endpointBuilder.set_host("221.148.54.130");
-//            endpointBuilder.set_host(NetworkUtils::hostIP4());
+            endpointBuilder.set_host(NetworkUtils::hostIP4(endpointURI.port()));
         }
         else if (endpointURI.host() == "host_auto_ip6") {
-            endpointBuilder.set_host(NetworkUtils::hostIP6());
+            endpointBuilder.set_host(NetworkUtils::hostIP6(endpointURI.port()));
+        }
+        else
+        {
+        	endpointBuilder.set_host(NetworkUtils::hostIP(AF_UNSPEC, endpointURI.port()));
         }
         endpointBuilder.set_port(endpointURI.port());
         endpointBuilder.set_path(endpointURI.path());
 
-        _config.set_timeout(t);
+        setListenerPath(endpointBuilder);
         _listener = http_listener(endpointBuilder.to_uri());
-    }
-
-    std::string BasicController::endpoint() const {
-        return _listener.uri().to_string();
+        _config.set_timeout(t);
     }
 
     pplx::task<void> BasicController::accept() {
@@ -74,5 +71,13 @@ namespace cfx {
     std::vector<utility::string_t> BasicController::requestPath(const http_request & message) {
         auto relativePath = uri::decode(message.relative_uri().path());
         return uri::split_path(relativePath);        
+    }
+    json::value BasicController::responseNotImpl(const http::method & method) {
+        auto response = json::value::object();
+        utility::string_t res_msg= _listener.uri().to_string();
+        response["uri_info"] = json::value::string(res_msg);
+        response["serviceName"] = json::value::string("GLSM Service");
+        response["http_method"] = json::value::string(method);
+        return response ;
     }
 }

@@ -1,46 +1,27 @@
-//
-//  Created by Ivan Mejia on 12/24/16.
-//
-// MIT License
-//
-// Copyright (c) 2016 ivmeroLabs.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
-
 
 #include <iostream>
 #include <stdlib.h>
 
 #include <usr_interrupt_handler.hpp>
 #include <runtime_utils.hpp>
+#include <map>
 
-#include "microsvc_controller.hpp"
+#include "controller_manager.hpp"
+#include "stream_controller.hpp"
+#include "machine_controller.hpp"
+
 
 #define MAJOR_VERSION "0"
-#define MINOR_VERSION "1"
+#define MINOR_VERSION "2"
 #define DEFAULT_PORT_NUM "8087"
-#define SERVER_IP_ADDR "221.148.54.130"
+
 #define DAFAULT_CONNECTION_TIMEOUT 1 //sec
+#define USERCON
 
 using namespace web;
 using namespace cfx;
+
+ControllerManager* controllerManager = NULL;
 
 int main(int argc, const char * argv[]) {
 
@@ -50,21 +31,29 @@ int main(int argc, const char * argv[]) {
 	{
 		port = argv[1];
 	}
-	utility::string_t defaultRoute = "http://host_auto_ip4:" + port;// + "/v" + MINOR_VERSION;
+	utility::string_t defaultRoute = "http://unspecified:" + port + "/v" + MINOR_VERSION;
 
+	//8087/v2/servers/_defaultServer_/vhosts/_defaultVHost_/applications/gigaeyeslive/instances/_definst_/
+#ifdef USERCON
 	InterruptHandler::hookSIGINT();
-
-	MicroserviceController server;
+#endif
+	controllerManager = new ControllerManager;
 
 	try {
-		server.setEndpoint(defaultRoute, t);
-		// wait for server initialization...
-		server.accept().wait();
-		std::cout << "GLSM now listening for requests at: " << server.endpoint() << '\n';
+		BasicController* server = new StreamController("_defaultServer_", "_defaultVHost_", "gigaeyeslive", "_definst_");
+		server->initialize(defaultRoute, t);
+		controllerManager->add_server("stream", server);
 
+//		BasicController* machine_server = new MachineController();
+//		machine_server->initialize(defaultRoute, t);
+//		controllerManager->add_server("machine", machine_server);
+
+		controllerManager->run_services();
+
+#ifdef USERCON
 		InterruptHandler::waitForUserInterrupt();
-
-		server.shutdown().wait();
+#endif
+		controllerManager->stop_services();
 	}
 	catch(std::exception & e) {
 		std::cerr << "Error : "<<e.what() << std::endl;
@@ -72,5 +61,7 @@ int main(int argc, const char * argv[]) {
 	catch(...) {
 		RuntimeUtils::printStackTrace();
 	}
+	delete controllerManager;
+
     return 0;
 }

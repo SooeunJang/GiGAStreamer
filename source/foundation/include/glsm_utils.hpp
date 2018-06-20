@@ -37,29 +37,29 @@ namespace glsm {
 //}ServerStatus;
 //
 
-typedef struct _streamInfo
-{
-	const char* applicationInstance;
-	bool isConnected;
-	bool isPTZEnabled;
-	bool isPublishedToVOD;
-	bool isRecordingSet;
-	bool isStreamManagerStream;
-	const char* name;
-	int ptzPollingInterval;
-	int ptzPollingIntervalMinimum;
-	std::string sourceIp;
-	            /*"isConnected": false,
-	            "isPTZEnabled": false,
-	            "isPublishedToVOD": false,
-	            "isRecordingSet": false,
-	            "isStreamManagerStream": true,
-	            "name": "cam0000000404.stream",
-	            "ptzPollingInterval": 2000,
-	            "ptzPollingIntervalMinimum": 1000,
-	            "sourceIp": "{uri : \"rtsp://admin:ktt15880112%21@192.168.0.240:553/onvif/media?profile=Profile1\",rtspStreamAudioTrack : \"false\",rtspFilterUnknownTracks : \"true\",rtpTransportMode : \"tcp\"}"*/
-}StreamInfo;
-//
+//typedef struct _streamInfo
+//{
+//	const char* applicationInstance;
+//	bool isConnected;
+//	bool isPTZEnabled;
+//	bool isPublishedToVOD;
+//	bool isRecordingSet;
+//	bool isStreamManagerStream;
+//	const char* name;
+//	int ptzPollingInterval;
+//	int ptzPollingIntervalMinimum;
+//	std::string sourceIp;
+//	            /*"isConnected": false,
+//	            "isPTZEnabled": false,
+//	            "isPublishedToVOD": false,
+//	            "isRecordingSet": false,
+//	            "isStreamManagerStream": true,
+//	            "name": "cam0000000404.stream",
+//	            "ptzPollingInterval": 2000,
+//	            "ptzPollingIntervalMinimum": 1000,
+//	            "sourceIp": "{uri : \"rtsp://admin:ktt15880112%21@192.168.0.240:553/onvif/media?profile=Profile1\",rtspStreamAudioTrack : \"false\",rtspFilterUnknownTracks : \"true\",rtpTransportMode : \"tcp\"}"*/
+//}StreamInfo;
+////
 //typedef struct _totalStreamInfo
 //{
 //	std::vector<StreamInfo*> streamVector;
@@ -281,7 +281,7 @@ typedef struct _REST_CreateProfile
 
         virtual web::json::value set_responseData(const char* message, bool is_success = true, web::json::value data = web::json::value::null())
        	{
-        	auto response = json::value::object();
+        	auto response = web::json::value::object();
         	response["success"] = web::json::value::boolean(is_success);
         	response["data"] = data; //web::json::value::null();
     		response["message"] = web::json::value::string(message);
@@ -313,7 +313,7 @@ typedef struct _REST_CreateProfile
 
 		virtual web::json::value set_responseData(const char* message, bool is_success = true, web::json::value data = web::json::value::null())
 		{
-			auto response = json::value::object();
+			auto response = web::json::value::object();
 			response["success"] = web::json::value::boolean(is_success);
 			response["data"] = data; //web::json::value::null();
 			response["message"] = web::json::value::string(message);
@@ -340,7 +340,7 @@ typedef struct _REST_CreateProfile
 
 		virtual web::json::value set_responseData(const char* message, bool is_success = true, web::json::value data = web::json::value::null())
 		{
-			auto response = json::value::object();
+			auto response = web::json::value::object();
 			response["success"] = web::json::value::boolean(is_success);
 			response["data"] = data; //web::json::value::null();
 			response["message"] = web::json::value::string(message);
