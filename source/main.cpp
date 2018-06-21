@@ -44,9 +44,9 @@ int main(int argc, const char * argv[]) {
 		server->initialize(defaultRoute, t);
 		controllerManager->add_server("stream", server);
 
-//		BasicController* machine_server = new MachineController();
-//		machine_server->initialize(defaultRoute, t);
-//		controllerManager->add_server("machine", machine_server);
+		BasicController* machine_server = new MachineController();
+		machine_server->initialize(defaultRoute, t);
+		controllerManager->add_server("machine", machine_server);
 
 		controllerManager->run_services();
 
