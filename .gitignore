@@ -3,3 +3,15 @@
 .DS_Store
 .cproject
 .project
+./build/
+### C++ ###
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+
