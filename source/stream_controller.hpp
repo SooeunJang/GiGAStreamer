@@ -6,8 +6,8 @@ using namespace cfx;
 
 class StreamController : public BasicController, Controller {
 public:
-    StreamController(const char* _serverName, const char* _serverHost, const char* _appName, const char* _appInstance)
-		: BasicController(_serverName, _serverHost, _appName, _appInstance) {}
+    StreamController(void)
+		: BasicController() {}
     virtual ~StreamController() {}
 
     void handleGet(http_request message) override;

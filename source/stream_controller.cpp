@@ -16,82 +16,10 @@ void StreamController::initRestOpHandlers() {
 
 void StreamController::setListenerPath(uri_builder& routing_path)
 {
-    if(this->serverInfo->serverName != NULL)
-    {
-    	routing_path.append_path("/servers/");
-    	routing_path.append_path(this->serverInfo->serverName);
-    }
-    if(this->serverInfo->serverHost != NULL)
-	{
-    	routing_path.append_path("/vHosts/");
-    	routing_path.append_path(this->serverInfo->serverHost);
-	}
-    if(this->serverInfo->appName != NULL)
-	{
-    	routing_path.append_path("/applications/");
-    	routing_path.append_path(this->serverInfo->appName);
-	}
 }
 
 void StreamController::handleGet(http_request message) {
-	auto path = requestPath(message);
-	if (!path.empty())
-	{
-		auto first = path.begin();
-		auto last = path.end();
-
-		web::json::value response;
-		for(std::vector<utility::string_t>::iterator iter = path.begin(); iter != path.end(); ++iter)
-		{
-//			std::cout<<"distance:"<<std::distance(std::next(iter, 1),last)<<", count:"<<path.size()<<std::endl;
-			if(*iter == "instances")
-			{
-				if(std::distance(std::next(iter, 2), last) == 0)
-				{
-//servers/_defaultServer_/vHosts/_defaultVHost_/applications/gigaeyeslive/instances/_definst_
-					std::vector<web::json::value> incomingStreams;
-					json::value temp;
-					temp["name"] = json::value::string("cam00001.stream");
-					temp["applicationInstance"] = json::value::string(serverInfo->get_appInstance());
-					temp["isStreamManagerStream"] = json::value::boolean(true);
-					incomingStreams.push_back(temp);
-
-					json::value temp2;
-					temp2["name"] = json::value::string("cam00002.stream");
-					temp2["applicationInstance"] = json::value::string(serverInfo->get_appInstance());
-					temp2["isStreamManagerStream"] = json::value::boolean(true);
-					incomingStreams.push_back(temp2);
-
-					json::value temp3;
-					temp3["name"] = json::value::string("cam00003.stream");
-					temp3["applicationInstance"] = json::value::string(serverInfo->get_appInstance());
-					temp3["isStreamManagerStream"] = json::value::boolean(true);
-					incomingStreams.push_back(temp3);
-
-					response["incomingStreams"] = json::value::array(incomingStreams);
-
-					response["name"] = json::value::string(serverInfo->get_appInstance());
-					response["outgoingStreams"] = web::json::value::null();
-					response["serverName"] = json::value::string(serverInfo->get_serverName());
-					response["streamGroups"] = web::json::value::null();
-					break;
-				}
-				else
-				{
-					if(std::next(iter, 2) == "incomingstreams")
-					{
-
-					}
-				}
-			}
-
-		}
-		message.reply(status_codes::OK, response);
-	}
-	else
-	{
-
-	}
+	message.reply(status_codes::NotImplemented);
 }
 
 void StreamController::handlePut(http_request message) {
@@ -99,7 +27,32 @@ void StreamController::handlePut(http_request message) {
 }
 
 void StreamController::handlePost(http_request message) {
-	message.reply(status_codes::NotImplemented);
+	auto paramMap = parseQuery(message);
+	int camid = std::stoi(paramMap["camid"]);
+
+	std::cout<<camid<<std::endl;
+	utility::string_t data = message.extract_json().get().serialize();
+	std::cout<<data<<std::endl;
+
+	Event* event = new Event;
+	event->set_event(camid, data);
+	std::cout<<event->get_data()<<std::endl;
+	std::cout<<eventQueue<<std::endl;
+//	if(mapmutex.try_lock())
+//	{
+		eventQueue->push_back(event);
+//		mapmutex.unlock();
+//	}
+//		std::cout<<eventQueue<<std::endl;
+	std::cout<<event->get_id()<<std::endl;
+
+	auto response = json::value::object();
+     utility::string_t res_msg= _listener.uri().to_string();
+     response["uri_info"] = json::value::string(res_msg);
+     response["serviceName"] = json::value::string("GLSM Service");
+     response["camid"] = json::value::string(paramMap["camid"]);
+//     response["json"] = message.extract_json().get();
+	message.reply(status_codes::OK, response);
 }
 
 void StreamController::handleDelete(http_request message) {    

@@ -3,21 +3,23 @@
 #include "network_utils.hpp"
 using namespace utility;
 
-namespace cfx {
-    BasicController::BasicController(const char* _serverName, const char* _serverHost, const char* _appName, const char* _appInstance)
+namespace cfx
+{
+    BasicController::BasicController(const char* _serverName, const char* _serverHost, const char* _appName, const char* _appInstance) : eventQueue()
     {
     	serverInfo = new ServerInfo(_serverName, _serverHost, _appName, _appInstance);
     }
-    BasicController::BasicController(ServerInfo* _serverInfo)
+    BasicController::BasicController(ServerInfo* _serverInfo) : eventQueue()
 	{
 		serverInfo = _serverInfo;
 	}
-    BasicController::BasicController(void)
+    BasicController::BasicController(void) : eventQueue()
 	{
 		serverInfo = NULL;
 	}
     BasicController::~BasicController()
     {
+    	eventQueue = NULL;
     	delete serverInfo;
     }
     void BasicController::initialize(const std::string & value, utility::seconds t)
@@ -69,9 +71,16 @@ namespace cfx {
     }
 
     std::vector<utility::string_t> BasicController::requestPath(const http_request & message) {
+//    	std::cout<<"client ip:"<<message.remote_address()<<std::endl;
         auto relativePath = uri::decode(message.relative_uri().path());
         return uri::split_path(relativePath);        
     }
+    std::map<utility::string_t, utility::string_t> BasicController::parseQuery(const http_request & message) {
+//    	std::cout<<"client ip:"<<message.remote_address()<<std::endl;
+		auto relativePath = uri::decode(message.relative_uri().query());
+		return uri::split_query(relativePath);
+	}
+
     json::value BasicController::responseNotImpl(const http::method & method) {
         auto response = json::value::object();
         utility::string_t res_msg= _listener.uri().to_string();
@@ -80,4 +89,5 @@ namespace cfx {
         response["http_method"] = json::value::string(method);
         return response ;
     }
+
 }

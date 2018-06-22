@@ -5,12 +5,16 @@
 #include <cpprest/http_listener.h>
 #include <pplx/pplxtasks.h>
 #include "controller.hpp"
+#include "event.hpp"
+#include <thread>
+#include <mutex>
 
 using namespace web;
 using namespace http::experimental::listener;
 
 namespace cfx
 {
+	extern std::mutex mapmutex;
 	typedef struct _ServerInfo
 	{
 		const char* serverName;
@@ -52,15 +56,22 @@ namespace cfx
         http_listener* get_listener() { return &_listener; }
         http_listener_config* get_listenerConfig() { return &_config; }
         std::string get_endpoint() const { return _listener.uri().to_string(); }
+        virtual void set_eventQueue(EventQueue* _eventQueue)
+        {
+        	this->eventQueue = _eventQueue;
+        }
 
     protected:
         http_listener _listener;
         http_listener_config _config;
         ServerInfo* serverInfo;
+        EventQueue* eventQueue;
         std::vector<utility::string_t> requestPath(const http_request & message);
+        std::map<utility::string_t, utility::string_t> parseQuery(const http_request & message);
         json::value responseNotImpl(const http::method & method);
         virtual void setListenerPath(uri_builder& routing_path);
         virtual void initRestOpHandlers() = 0;
+
     private:
         void setEndpoint(const std::string & value, utility::seconds t);
     };
