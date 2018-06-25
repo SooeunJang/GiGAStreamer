@@ -9,7 +9,7 @@
 #include "controller_manager.hpp"
 #include "stream_controller.hpp"
 #include "machine_controller.hpp"
-#include "websocket_service.hpp"
+//#include "websocket_service.hpp"
 
 #define MAJOR_VERSION "0"
 #define MINOR_VERSION "2"
@@ -34,30 +34,22 @@ int main(int argc, const char * argv[]) {
 		port = argv[1];
 	}
 	utility::string_t defaultRoute = "http://unspecified:" + port + "/v" + MINOR_VERSION;
-
-	//8087/v2/servers/_defaultServer_/vhosts/_defaultVHost_/applications/gigaeyeslive/instances/_definst_/
 #ifdef USERCON
 	InterruptHandler::hookSIGINT();
 #endif
 	controllerManager = new ControllerManager;
-	WebSocketService* websocket;
+
 	try {
 		BasicController* server = new StreamController();
 		server->initialize(defaultRoute, t);
 		controllerManager->add_server("stream", server);
-
+		std::thread event_thread{&ControllerManager::get_eventQueue, controllerManager};
 //		BasicController* machine_server = new MachineController();
 //		machine_server->initialize(defaultRoute, t);
 //		controllerManager->add_server("machine", machine_server);
 		controllerManager->set_eventQueue();
 		controllerManager->run_services();
 
-//		std::thread event_thread{&ControllerManager::get_eventQueue, controllerManager};
-
-		websocket = new WebSocketService(DEFAULT_WEBSOCKET_PORT_NUM, 1);
-		websocket->initialize();
-		websocket->run();
-//		event_thread.join();
 #ifdef USERCON
 		InterruptHandler::waitForUserInterrupt();
 #endif
@@ -70,7 +62,6 @@ int main(int argc, const char * argv[]) {
 		RuntimeUtils::printStackTrace();
 	}
 	delete controllerManager;
-	delete websocket;
 
     return 0;
 }

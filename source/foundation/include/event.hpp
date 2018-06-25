@@ -8,29 +8,27 @@
 
 #include<string>
 #include<vector>
+#include "cpprest/json.h"
+using namespace web;
 
 namespace cfx
 {
-	class Event
+	typedef struct _Event
 	{
-	public:
-		Event() : id(0), data(NULL) {}
-		~Event() {}
-		void set_event(int _id, std::string _data)
+		int id;
+		json::value data;
+		void set_event(int _id, json::value _data)
 		{
 			id = _id;
 			data = _data;
-			std::cout<<id<<":"<<data<<std::endl;
 		}
 		int get_id() { return id; }
-		std::string get_data()
+		json::value get_data()
 		{
 			return data;
 		}
-//	private:
-		int id;
-		std::string data;
-	};
-	typedef std::vector<Event*> EventQueue;
+	}Event;
+
+	typedef std::vector<Event> EventQueue;
 
 }

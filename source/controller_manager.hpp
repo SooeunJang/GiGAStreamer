@@ -5,14 +5,22 @@
 #include <thread>
 #include <mutex>
 #include "basic_controller.hpp"
+#include "websocket_service.hpp"
 
 namespace cfx {
 	extern std::mutex mapmutex;
 	class ControllerManager
 	{
 	public:
-		ControllerManager() {}
-		~ControllerManager() {}
+		ControllerManager()
+		{
+			websocket = new WebSocketService(8080, 1);
+			websocket->initialize();
+		}
+		~ControllerManager()
+		{
+			delete websocket;
+		}
 		void add_server(const char* name, BasicController* _server)
 		{
 			serverList.insert(std::make_pair(std::string(name), _server));
@@ -33,6 +41,7 @@ namespace cfx {
 				iter.second->accept().wait();
 				std::cout << "server name :[" << iter.first<<"] is now listening at \""<<iter.second->get_endpoint()<<"\""<<std::endl;
 			}
+			websocket->run();
 		}
 
 		void stop_services()
@@ -48,50 +57,33 @@ namespace cfx {
 		{
 			for ( auto iter : serverList)
 			{
-				std::cout<<&eventQueue<<std::endl;
 				iter.second->set_eventQueue(&eventQueue);
 			}
-//			std::thread event_thread([&]()
-//					{
-//						get_eventQueue();
-//					});
-//			event_thread.join();
 		}
 
 		void get_eventQueue()
 		{
-			std::this_thread::sleep_for(std::chrono::seconds(1));
+			std::this_thread::sleep_for(std::chrono::seconds(2));
 			while(1)
 			{
-				if(mapmutex.try_lock())
+				if(!eventQueue.empty())
 				{
-					if(eventQueue.empty())
-					{
-						mapmutex.unlock();
-						continue;
-					}
-					std::cout<<"!!!!!!!!!!!!!!!!!!!"<<std::endl;
+					std::cout<<"get message from IIF server!!!"<<std::endl;
 					for( auto iter = eventQueue.begin(); iter != eventQueue.end(); ++iter )
 					{
-						Event* event = *iter;
-						std::cout<<"id: "<<event->get_id()<<", str: "<<event->get_data()<<std::endl;
-						if(mapmutex.try_lock())
-						{
-	//						eventQueue.erase();
-							eventQueue.erase(iter);
-							mapmutex.unlock();
-						}
+						websocket->send_message(iter->get_id(), iter->get_data());
+					}
+					if(mapmutex.try_lock())
+					{
+						eventQueue.clear();
+						mapmutex.unlock();
 					}
 				}
-				else
-				{
-					std::cout<<"mutex is locked !!!"<<std::endl;
-				}
-//				continue;
 			}
 		}
 	protected:
 		std::unordered_map<std::string, BasicController*> serverList;
 		EventQueue eventQueue;
+		WebSocketService* websocket;
 	};
 }

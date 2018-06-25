@@ -123,15 +123,22 @@ public:
 
 	void on_open(connection_hdl hdl)
 	{
-		connection_data data;
-		std::cout<<"client connected with hdl: " << hdl.lock().get()
-				 <<", camid: "<<websocket_server.get_con_from_hdl(hdl)->get_uri()->get_queryParam("camid")
-				 <<std::endl;
-		data.sessionid = std::stoi(websocket_server.get_con_from_hdl(hdl)->get_uri()->get_queryParam("camid"));
-		data.name.clear();
-		data.name = "CAM" + std::to_string(data.sessionid);
-		data.hdl = hdl;
-		m_connections[hdl] = data;
+		try
+		{
+			connection_data data;
+			std::cout<<"client connected with hdl: " << hdl.lock().get()
+					 <<", camid: "<<websocket_server.get_con_from_hdl(hdl)->get_uri()->get_queryParam("camid")
+					 <<std::endl;
+			data.sessionid = std::stoi(websocket_server.get_con_from_hdl(hdl)->get_uri()->get_queryParam("camid"));
+			data.name.clear();
+			data.name = "CAM" + std::to_string(data.sessionid);
+			data.hdl = hdl;
+			m_connections[hdl] = data;
+		}
+		catch(websocketpp::exception const & e)
+		{
+			std::cout << e.what() << std::endl;
+		}
 	}
 
 	void on_close(connection_hdl hdl)
@@ -157,20 +164,37 @@ public:
                       << " with sessionid " << data.sessionid << std::endl;
 //        }
     }
-    void send_message( int id, void* responseData)
+    void send_message( int id, json::value responseData)
     {
     	connection_hdl hdl;
-    	for( auto data : m_connections)
-    	{
-    		std::cout<<"data.second.sessionid: "<<data.second.sessionid<<", id:"<<id<<std::endl;
-    		if( data.second.sessionid == id)
-    		{
-    			hdl = data.first;
-    			break;
-    		}
+    	bool found = false;
+    	try{
+    		if(m_connections.size() != 0)
+			{
+				for( auto data : m_connections)
+				{
+					std::cout<<"data.second.sessionid: "<<data.second.sessionid<<", id:"<<id<<std::endl;
+					if( data.second.sessionid == id)
+					{
+						found = true;
+						hdl = data.first;
+						break;
+					}
+				}
+				if(found)
+				{
+					websocket_server.send(hdl, responseData.serialize(), websocketpp::frame::opcode::text);
+				}
+				else
+				{
+					throw;
+				}
+			}
     	}
-
-    	websocket_server.send(hdl, static_cast<std::string>((const char*)responseData), websocketpp::frame::opcode::text);
+    	catch(std::exception & e)
+    	{
+    		std::cerr << "no connection. connect device first on own cam id. "<<e.what() << std::endl;
+    	}
     }
 //    void on_message(server* s, websocketpp::connection_hdl hdl, message_ptr msg)
 //    {
