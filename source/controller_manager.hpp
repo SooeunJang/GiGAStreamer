@@ -69,15 +69,30 @@ namespace cfx {
 				if(!eventQueue.empty())
 				{
 					std::cout<<"get message from IIF server!!!"<<std::endl;
-					for( auto iter = eventQueue.begin(); iter != eventQueue.end(); ++iter )
+					try{
+						for( auto iter = eventQueue.begin(); iter != eventQueue.end(); ++iter )
+						{
+							if(!websocket->send_message(iter->get_id(), iter->get_data()))
+							{
+								throw std::invalid_argument("No camera available for session");
+							}
+						}
+					}
+					catch (websocketpp::exception const & e)
 					{
-						websocket->send_message(iter->get_id(), iter->get_data());
+						std::cout << e.what() << std::endl;
+					} catch (websocketpp::lib::error_code& e) {
+						std::cout << e.message() << std::endl;
+					} catch (...)
+					{
+						std::cerr << "no connection. connect device first on own cam id :"<< std::endl;
 					}
 					if(mapmutex.try_lock())
 					{
 						eventQueue.clear();
 						mapmutex.unlock();
 					}
+					continue;
 				}
 			}
 		}

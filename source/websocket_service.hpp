@@ -159,42 +159,33 @@ public:
 //            std::cout << "Setting name of connection with sessionid "
 //                      << data.sessionid << " to " << data.name << std::endl;
 //        } else {
-            std::cout << "on_message called with hdl: " << hdl.lock().get()
-					  << "Got a message from connection " << data.name
-                      << " with sessionid " << data.sessionid << std::endl;
+        std::cout << "on_message called with hdl: " << hdl.lock().get()
+				  << "Got a message from connection " << data.name
+                  << " with sessionid " << data.sessionid << std::endl;
 //        }
     }
-    void send_message( int id, json::value responseData)
+    bool send_message( int id, json::value responseData)
     {
     	connection_hdl hdl;
     	bool found = false;
-    	try{
-    		if(m_connections.size() != 0)
+		if(m_connections.size() != 0)
+		{
+			for( auto data : m_connections)
 			{
-				for( auto data : m_connections)
+				std::cout<<"data.second.sessionid: "<<data.second.sessionid<<", id:"<<id<<std::endl;
+				if( data.second.sessionid == id)
 				{
-					std::cout<<"data.second.sessionid: "<<data.second.sessionid<<", id:"<<id<<std::endl;
-					if( data.second.sessionid == id)
-					{
-						found = true;
-						hdl = data.first;
-						break;
-					}
-				}
-				if(found)
-				{
-					websocket_server.send(hdl, responseData.serialize(), websocketpp::frame::opcode::text);
-				}
-				else
-				{
-					throw;
+					found = true;
+					hdl = data.first;
+					break;
 				}
 			}
-    	}
-    	catch(std::exception & e)
-    	{
-    		std::cerr << "no connection. connect device first on own cam id. "<<e.what() << std::endl;
-    	}
+			if(found)
+			{
+				websocket_server.send(hdl, responseData.serialize(), websocketpp::frame::opcode::text);
+			}
+		}
+		return found;
     }
 //    void on_message(server* s, websocketpp::connection_hdl hdl, message_ptr msg)
 //    {
