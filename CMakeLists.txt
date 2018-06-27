@@ -58,7 +58,8 @@ add_executable(${PROJECT_NAME} ./source/main.cpp
 # headers search paths ...
 
 ##############3#for websocket!!###########
-set(WEBSOCKETPP_ROOT "/home/gigasurv/Dev/websocketpp")
+#set(WEBSOCKETPP_ROOT "/home/gigasurv/Dev/websocketpp")
+set(WEBSOCKETPP_ROOT "libs/cpprestsdk/Release/libs/websocketpp/")
 set(WEBSOCKETPP_LIB ${WEBSOCKETPP_ROOT}/lib)
 set(WEBSOCKETPP_INCLUDE ${WEBSOCKETPP_ROOT})
 set(WEBSOCKETPP_PLATFORM_LIBS -lpthread -lrt -lz)
