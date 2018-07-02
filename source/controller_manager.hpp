@@ -6,6 +6,7 @@
 #include <mutex>
 #include "basic_controller.hpp"
 #include "websocket_service.hpp"
+#include "rest_client.hpp"
 
 namespace cfx {
 	extern std::mutex mapmutex;
@@ -16,10 +17,12 @@ namespace cfx {
 		{
 			websocket = new WebSocketService(8080, 1);
 			websocket->initialize();
+			restclient = new Client("http://211.54.3.139:", "28080");
 		}
 		~ControllerManager()
 		{
 			delete websocket;
+			delete restclient;
 		}
 		void add_server(const char* name, BasicController* _server)
 		{
@@ -76,6 +79,7 @@ namespace cfx {
 							{
 								throw std::invalid_argument("No camera available for session");
 							}
+							restclient->send_message(iter->get_id(), iter->get_data());
 						}
 					}
 					catch (websocketpp::exception const & e)
@@ -100,5 +104,6 @@ namespace cfx {
 		std::unordered_map<std::string, BasicController*> serverList;
 		EventQueue eventQueue;
 		WebSocketService* websocket;
+		Client* restclient;
 	};
 }
