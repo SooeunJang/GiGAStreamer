@@ -76,6 +76,7 @@ public:
 	}
 	bool run_streamer()
 	{
+		error = nullptr;
 		streaming_server_start (gls_handle, &error);
 
 		main_loop = g_main_loop_new (nullptr, FALSE);
@@ -84,6 +85,12 @@ public:
 	}
 	bool create_stream(std::string camid)
 	{
+		error = nullptr;
+		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
+		if(object != nullptr)
+		{
+			return true;
+		}
 		return streaming_session_new (gls_handle, camid.c_str(), NULL);
 	}
 	bool delete_stream(std::string camid)
@@ -93,6 +100,7 @@ public:
 	}
 	bool modify_stream(std::string camid, const char* uri)
 	{
+		error = nullptr;
 		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
 		if (object == NULL)
 		{
@@ -111,11 +119,13 @@ public:
 
 	bool start_stream(std::string camid)
 	{
+		error = nullptr;
 		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
 		return streaming_object_start (object, &error);
 	}
 	bool stop_stream(std::string camid)
 	{
+		error = nullptr;
 		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
 		if (object == NULL)
 		{
@@ -129,6 +139,7 @@ public:
 
 	bool start_record(std::string camid, RecordParameters* recordParameters)
 	{
+		error = nullptr;
 		auto outputPath = recordParameters->outputPath.c_str();
 
 		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
@@ -149,6 +160,7 @@ public:
 	}
 	bool stop_record(std::string camid)
 	{
+		error = nullptr;
 		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
 		if (object == NULL) {
 			g_printerr ("Unable to get the session: %s\n", camid.c_str());
@@ -189,6 +201,7 @@ public:
 
 	bool split_record(std::string camid)
 	{
+		error = nullptr;
 		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
 		if (object == NULL)
 		{
