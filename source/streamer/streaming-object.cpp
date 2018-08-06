@@ -237,7 +237,7 @@ streaming_object_start (StreamingObject  *self,
 
   gchar cmd[1024];
   g_sprintf (cmd,
-             "rtspsrc name=rtspsrc-%s location=%s protocols=tcp is-live=true"
+             "rtspsrc name=rtspsrc-%s location=%s protocols=tcp latency=500 is-live=true"
              " ! shmsink socket-path=/tmp/%s shm-size=10000000 wait-for-connection=false",
              self->object_name, self->rtsp_url, self->object_name);
   self->stream_pipeline = gst_parse_launch (cmd, NULL);
