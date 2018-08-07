@@ -45,6 +45,15 @@ enum
 
 static GParamSpec *obj_properties[N_PROPERTIES] = { NULL, };
 
+enum
+{
+  SIG_ERROR = 1,
+  SIG_EOS,
+  N_SIGNALS
+};
+
+static guint obj_signals[N_SIGNALS] = { 0, }; 
+
 static void cb_message (GstBus *bus, GstMessage *msg, StreamingObject *self);
 
 GstState get_pipeline_state (GstElement *pipeline);
@@ -204,6 +213,30 @@ streaming_object_class_init (StreamingObjectClass *klass)
   g_object_class_install_properties (object_class,
                                      N_PROPERTIES,
                                      obj_properties);
+
+  obj_signals[SIG_ERROR] = 
+      g_signal_newv ("error",
+                     G_TYPE_FROM_CLASS (object_class),
+                     (GSignalFlags) (G_SIGNAL_RUN_LAST | G_SIGNAL_NO_RECURSE | G_SIGNAL_NO_HOOKS),
+                     NULL /* closure */,
+                     NULL /* accumulator */,
+                     NULL /* accumulator data */,
+                     NULL /* C marshaller */,
+                     G_TYPE_NONE /* return_type */,
+                     0     /* n_params */,
+                     NULL  /* param_types */);
+
+  obj_signals[SIG_EOS] = 
+      g_signal_newv ("end-of-stream",
+                     G_TYPE_FROM_CLASS (object_class),
+                     (GSignalFlags) (G_SIGNAL_RUN_LAST | G_SIGNAL_NO_RECURSE | G_SIGNAL_NO_HOOKS),
+                     NULL /* closure */,
+                     NULL /* accumulator */,
+                     NULL /* accumulator data */,
+                     NULL /* C marshaller */,
+                     G_TYPE_NONE /* return_type */,
+                     0     /* n_params */,
+                     NULL  /* param_types */);
 }
 
 static void
@@ -431,6 +464,8 @@ cb_message (GstBus *bus, GstMessage *msg, StreamingObject *self)
       g_print ("%s: Error(%s %s %s)\n", self->object_name, GST_OBJECT_NAME (msg->src), err->message, (debug) ? debug : "none");
       g_error_free (err);
       g_free (debug);
+
+      g_signal_emit (self, obj_signals[SIG_ERROR], 0);
     } break;
 
     case GST_MESSAGE_EOS:
@@ -443,6 +478,7 @@ cb_message (GstBus *bus, GstMessage *msg, StreamingObject *self)
       }
 
       g_print ("%s: EOS\n", self->object_name);
+      g_signal_emit (self, obj_signals[SIG_EOS], 0);
       break;
 
     case GST_MESSAGE_CLOCK_LOST:
