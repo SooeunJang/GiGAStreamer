@@ -466,6 +466,9 @@ cb_message (GstBus *bus, GstMessage *msg, StreamingObject *self)
       g_free (debug);
 
       g_signal_emit (self, obj_signals[SIG_ERROR], 0);
+
+      streaming_object_stop (self, NULL);
+      streaming_object_start (self, NULL);
     } break;
 
     case GST_MESSAGE_EOS:
