@@ -217,7 +217,7 @@ streaming_session_new (StreamingServer  *self,
              "shmsrc socket-path=/tmp/%s do-timestamp=true is-live=true"
              " ! application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264"
              " ! rtph264depay"
-             " ! rtph264pay name=pay0 pt=96",
+             " ! rtph264pay name=pay0 pt=97",
              name);
 
   GstRTSPMediaFactory *factory = gst_rtsp_media_factory_new ();
