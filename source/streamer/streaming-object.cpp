@@ -198,8 +198,8 @@ streaming_object_class_init (StreamingObjectClass *klass)
                            "Max. amount of time per record file in ns.",
                            0  /* minimum value */,
                            60000000000 /* maximum value */,
-                           30000000000  /* default value */,
-                           G_PARAM_READWRITE);
+                           30000000000 /* default value */,
+                           (GParamFlags) (G_PARAM_CONSTRUCT | G_PARAM_READWRITE));
 
   obj_properties[PROP_RECORD_MAX_FILES] =
       g_param_spec_uint ("record-max-files",
@@ -208,7 +208,7 @@ streaming_object_class_init (StreamingObjectClass *klass)
                          0  /* minimum value */,
                          10 /* maximum value */,
                          5  /* default value */,
-                         G_PARAM_READWRITE);
+                         (GParamFlags) (G_PARAM_CONSTRUCT | G_PARAM_READWRITE));
 
   g_object_class_install_properties (object_class,
                                      N_PROPERTIES,
