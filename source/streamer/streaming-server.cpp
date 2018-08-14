@@ -171,7 +171,8 @@ streaming_server_stop (StreamingServer  *self,
 
 StreamingObject *
 streaming_session_new (StreamingServer  *self,
-                       const gchar            *name,
+                       const gchar      *name,
+                       const GPtrArray  *mounts,
                        GError           **error)
 {
   g_return_val_if_fail (STREAMING_IS_SERVER (self), NULL);
@@ -189,7 +190,7 @@ streaming_session_new (StreamingServer  *self,
   g_object_set_property (G_OBJECT (object), "object-name", &object_name);
   g_value_unset (&object_name);
 
-  GstRTSPMountPoints *mounts = gst_rtsp_server_get_mount_points (self->rtsp_server);
+  GstRTSPMountPoints *rtsp_mounts = gst_rtsp_server_get_mount_points (self->rtsp_server);
   gchar rtsp_src[1024];
   // for standalone test
   // g_sprintf (rtsp_src, "videotestsrc ! queue ! videoconvert ! x264enc ! rtph264pay name=pay0 pt=96");
@@ -200,18 +201,16 @@ streaming_session_new (StreamingServer  *self,
              " ! rtph264pay name=pay0 pt=97",
              name);
 
-  GstRTSPMediaFactory *factory = gst_rtsp_media_factory_new ();
-  gst_rtsp_media_factory_set_shared (factory, TRUE);
-  gst_rtsp_media_factory_set_launch (factory, rtsp_src);
+  GstRTSPMediaFactory *rtsp_factory = gst_rtsp_media_factory_new ();
+  gst_rtsp_media_factory_set_shared (rtsp_factory, TRUE);
+  gst_rtsp_media_factory_set_launch (rtsp_factory, rtsp_src);
 
-  for (guint mount_idx = 0; mount_idx < self->rtsp_mounts->len; mount_idx++)
+  for (guint idx = 0; idx < mounts->len; idx++)
   {
-    gpointer mount = g_ptr_array_index (self->rtsp_mounts, mount_idx);
-    gchar rtsp_mount[1024];
-    g_sprintf (rtsp_mount, "%s/%s", (gchar*) mount, name);
-    gst_rtsp_mount_points_add_factory (mounts, rtsp_mount, factory);
+    gpointer rtsp_mount = g_ptr_array_index (mounts, idx);
+    gst_rtsp_mount_points_add_factory (rtsp_mounts, (gchar *) rtsp_mount, rtsp_factory);
   }
-  g_object_unref (mounts);
+  g_object_unref (rtsp_mounts);
 
   g_hash_table_insert(self->sessions, g_strdup (name), object);
 
@@ -220,8 +219,8 @@ streaming_session_new (StreamingServer  *self,
 
 void
 streaming_session_unref (StreamingServer *self,
-                         const gchar            *name,
-                         GError           **error)
+                         const gchar     *name,
+                         GError          **error)
 {
   g_return_if_fail (STREAMING_IS_SERVER (self));
   g_return_if_fail (error == NULL || *error == NULL);
@@ -239,7 +238,7 @@ streaming_session_unref (StreamingServer *self,
 
 StreamingObject *
 streaming_session_get (StreamingServer  *self,
-                       const gchar            *name,
+                       const gchar      *name,
                        GError           **error)
 {
   g_return_val_if_fail (STREAMING_IS_SERVER (self), NULL);

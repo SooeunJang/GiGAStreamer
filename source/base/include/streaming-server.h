@@ -14,8 +14,7 @@
 #define __STREAMING_SERVER_H__
 
 #include <glib-object.h>
-#include <glib/gprintf.h>
-#include <gst/gst.h>
+
 #include "streaming-object.h"
 
 G_BEGIN_DECLS
@@ -39,9 +38,10 @@ void streaming_server_stop (StreamingServer  *self,
 
 StreamingObject *streaming_session_new (StreamingServer  *self,
                                         const gchar      *name,
+                                        const GPtrArray  *mount,
                                         GError           **error);
 void streaming_session_unref (StreamingServer  *self,
-                             const gchar       *name,
+                              const gchar      *name,
                               GError           **error);
 StreamingObject *streaming_session_get (StreamingServer  *self,
                                         const gchar      *name,
