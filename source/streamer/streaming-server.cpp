@@ -23,7 +23,6 @@ struct _StreamingServer
   GObject parent_instance;
 
   gchar *rtsp_port;
-  GPtrArray *rtsp_mounts;
   GstRTSPServer *rtsp_server;
   GHashTable *sessions;
 };
@@ -33,7 +32,6 @@ G_DEFINE_TYPE (StreamingServer, streaming_server, G_TYPE_OBJECT)
 enum
 {
   PROP_RTSP_PORT = 1,
-  PROP_RTSP_MOUNTS,
   N_PROPERTIES
 };
 
@@ -52,11 +50,6 @@ streaming_server_set_property (GObject      *object,
     case PROP_RTSP_PORT:
       g_free (self->rtsp_port);
       self->rtsp_port = g_value_dup_string (value);
-      break;
-
-    case PROP_RTSP_MOUNTS:
-      g_ptr_array_free (self->rtsp_mounts, TRUE);
-      self->rtsp_mounts = (GPtrArray *) g_value_dup_boxed (value);
       break;
 
     default:
@@ -78,10 +71,6 @@ streaming_server_get_property (GObject    *object,
   {
     case PROP_RTSP_PORT:
       g_value_set_string (value, self->rtsp_port);
-      break;
-
-    case PROP_RTSP_MOUNTS:
-      g_value_set_boxed (value, self->rtsp_mounts);
       break;
 
     default:
@@ -107,7 +96,6 @@ streaming_server_finalize (GObject *gobject)
   StreamingServer *self = STREAMING_SERVER (gobject);
 
   g_free (self->rtsp_port);
-  g_ptr_array_free (self->rtsp_mounts, TRUE);
   g_hash_table_destroy (self->sessions);
 
   /* Always chain up to the parent class; as with dispose(), finalize()
@@ -134,13 +122,6 @@ streaming_server_class_init (StreamingServerClass *klass)
                            "1935"  /* default value */,
                            G_PARAM_READWRITE);
 
-  obj_properties[PROP_RTSP_MOUNTS] =
-      g_param_spec_boxed ("rtsp-mounts",
-                          "RTSP Mounts",
-                          "Map a path to media.",
-                          G_TYPE_PTR_ARRAY  /* default value */,
-                          G_PARAM_READWRITE);
-
   g_object_class_install_properties (object_class,
                                      N_PROPERTIES,
                                      obj_properties);
@@ -149,7 +130,6 @@ streaming_server_class_init (StreamingServerClass *klass)
 static void
 streaming_server_init (StreamingServer *self)
 {
-  self->rtsp_mounts = g_ptr_array_new ();
   self->sessions = g_hash_table_new (g_str_hash, g_str_equal);
 }
 
@@ -217,7 +197,7 @@ streaming_session_new (StreamingServer  *self,
              "shmsrc socket-path=/tmp/%s do-timestamp=true is-live=true"
              " ! application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264"
              " ! rtph264depay"
-             " ! rtph264pay name=pay0 pt=96",
+             " ! rtph264pay name=pay0 pt=97",
              name);
 
   GstRTSPMediaFactory *factory = gst_rtsp_media_factory_new ();
