@@ -41,24 +41,8 @@ class GLSinterface
 public:
 	GLSinterface(ServerInfo* serverconf) : gls_handle(nullptr), main_loop(nullptr), error(nullptr), status(SUSPENDED)
 	{
-		::gst_init (0, nullptr);
+
 		gls_handle = streaming_server_new ();
-
-		GValue rtsp_mounts = G_VALUE_INIT;
-		g_value_init (&rtsp_mounts, G_TYPE_PTR_ARRAY);
-		g_assert (G_VALUE_HOLDS_BOXED (&rtsp_mounts));
-
-		GPtrArray *rtsp_mounts_array = g_ptr_array_new ();
-		g_ptr_array_add (rtsp_mounts_array, (gpointer) serverconf->stream1.c_str());
-		g_ptr_array_add (rtsp_mounts_array, (gpointer) serverconf->stream2.c_str());
-		g_ptr_array_add (rtsp_mounts_array, (gpointer) serverconf->stream3.c_str());
-
-		g_value_set_boxed (&rtsp_mounts, rtsp_mounts_array);
-		g_object_set_property (G_OBJECT (gls_handle), "rtsp-mounts", &rtsp_mounts);
-
-		g_ptr_array_unref (rtsp_mounts_array);
-		g_value_unset (&rtsp_mounts);
-
 		GValue rtsp_port = G_VALUE_INIT;
 		g_value_init (&rtsp_port, G_TYPE_STRING);
 		g_value_set_static_string (&rtsp_port, serverconf->streamerPort.c_str());
@@ -83,25 +67,25 @@ public:
 		g_main_loop_run (main_loop);
 		return true;
 	}
-	bool create_stream(std::string camid)
+	bool create_stream(std::string camid, std::string appname)
 	{
 		error = nullptr;
-		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
+		StreamingObject *object = streaming_session_get (gls_handle, appname.c_str(), camid.c_str(), &error);
 		if(object != nullptr)
 		{
 			return true;
 		}
-		return streaming_session_new (gls_handle, camid.c_str(), NULL);
+		return streaming_session_new (gls_handle, appname.c_str(), camid.c_str(), NULL);
 	}
-	bool delete_stream(std::string camid)
+	bool delete_stream(std::string camid, std::string appname)
 	{
-		streaming_session_unref (gls_handle, camid.c_str(), NULL);
+		streaming_session_unref (gls_handle, appname.c_str(), camid.c_str(), NULL);
 		return true;
 	}
-	bool modify_stream(std::string camid, const char* uri)
+	bool modify_stream(std::string camid, std::string appname, const char* uri)
 	{
 		error = nullptr;
-		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
+		StreamingObject *object = streaming_session_get (gls_handle, appname.c_str(), camid.c_str(), &error);
 		if (object == NULL)
 		{
 			g_printerr ("Unable to get the session: %s\n", camid.c_str());
@@ -117,16 +101,21 @@ public:
 		return true;
 	}
 
-	bool start_stream(std::string camid)
+	bool start_stream(std::string camid, std::string appname)
 	{
 		error = nullptr;
-		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
+		StreamingObject *object = streaming_session_get (gls_handle, appname.c_str(), camid.c_str(), &error);
+		if (object == NULL)
+		{
+			g_printerr ("Unable to start streaming: %s\n", camid.c_str());
+			return false;
+		}
 		return streaming_object_start (object, &error);
 	}
-	bool stop_stream(std::string camid)
+	bool stop_stream(std::string camid, std::string appname)
 	{
 		error = nullptr;
-		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
+		StreamingObject *object = streaming_session_get (gls_handle, appname.c_str(), camid.c_str(), &error);
 		if (object == NULL)
 		{
 			g_printerr ("Unable to get the session: %s\n", camid.c_str());
@@ -137,12 +126,17 @@ public:
 		return true;
 	}
 
-	bool start_record(std::string camid, RecordParameters* recordParameters)
+	bool start_record(std::string camid, std::string appname, RecordParameters* recordParameters)
 	{
 		error = nullptr;
 		auto outputPath = recordParameters->outputPath.c_str();
 
-		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
+		if(appname.compare("gigaeyeslive") != 0)
+		{
+			g_error (" \n\n !!! no appname gigaeyeslive \n");
+		}
+
+		StreamingObject *object = streaming_session_get (gls_handle, appname.c_str(), camid.c_str(), &error);
 		if (object == NULL)
 		{
 			g_printerr ("Unable to get the session: %s\n", camid.c_str());
@@ -158,10 +152,16 @@ public:
 
 		return streaming_object_record (object, &error);
 	}
-	bool stop_record(std::string camid)
+	bool stop_record(std::string camid, std::string appname)
 	{
 		error = nullptr;
-		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
+
+		if(appname.compare("gigaeyeslive") != 0)
+		{
+			g_error (" \n\n !!! no appname gigaeyeslive \n");
+		}
+
+		StreamingObject *object = streaming_session_get (gls_handle, appname.c_str(), camid.c_str(), &error);
 		if (object == NULL) {
 			g_printerr ("Unable to get the session: %s\n", camid.c_str());
 			return false;
@@ -171,13 +171,13 @@ public:
 		return true;
 	}
 
-	bool update_status(std::vector<StreamState>* vector)
+	bool update_status(std::vector<StreamState>* vector, std::string appname)
 	{
 	      GList *l;
-	      for (l = streaming_session_list (gls_handle, NULL); l != NULL; l = l->next)
+	      for (l = streaming_session_list (gls_handle, appname.c_str(), NULL); l != NULL; l = l->next)
 	      {
 	        GError *error = NULL;
-	        StreamingObject *object = streaming_session_get (gls_handle, (gchar *) l->data, &error);
+	        StreamingObject *object = streaming_session_get (gls_handle, appname.c_str(), (gchar *) l->data, &error);
 	        if (object == NULL)
 	        {
 	          continue;
@@ -196,13 +196,13 @@ public:
 	        g_value_unset (&val);
 	      }
 	      g_list_free (l);
-	      return true;
+	      return !vector->empty();
 	}
 
-	bool split_record(std::string camid)
+	bool split_record(std::string camid, std::string appname)
 	{
 		error = nullptr;
-		StreamingObject *object = streaming_session_get (gls_handle, camid.c_str(), &error);
+		StreamingObject *object = streaming_session_get (gls_handle, appname.c_str(), camid.c_str(), &error);
 		if (object == NULL)
 		{
 			g_printerr ("Unable to get the session: %s\n", camid.c_str());
