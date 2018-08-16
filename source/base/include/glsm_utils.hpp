@@ -82,6 +82,7 @@ namespace glsm {
 		machine = 0,
 		vhosts = 2,
 		applications = 4,
+		application = 5,
 		streamfiles = 6,
 		camid = 7,
 		adv = 8,
@@ -388,7 +389,7 @@ namespace glsm {
 			FROMJSON_STR(fileFormat)
 			FROMJSON_STR(fileVersionDelegateName)
 			FROMJSON_STR(fileTemplate)
-			FROMJSON_STR(segmentDuration)
+			FROMJSON_INT(segmentDuration)
 			FROMJSON_INT(segmentSize)
 			FROMJSON_BOOL(recordData)
 			FROMJSON_BOOL(startOnKeyFrame)

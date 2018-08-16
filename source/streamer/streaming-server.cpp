@@ -138,6 +138,7 @@ streaming_server_init (StreamingServer *self)
 
 StreamingServer *
 streaming_server_new (void) {
+  gst_init (NULL, NULL);
   return STREAMING_SERVER (g_object_new (STREAMING_TYPE_SERVER, NULL));
 }
 

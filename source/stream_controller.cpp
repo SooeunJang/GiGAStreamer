@@ -50,6 +50,7 @@ void StreamController::handleGet(http_request message) {
 	{
 		auto response = json::value::object();
 		bool result = false;
+		auto appname = path[URL_Separator::application];
 		if(path[URL_Separator::machine] == "machine")
 		{
 			SystemMonitorConfiguration monitor_config;
@@ -77,6 +78,7 @@ void StreamController::handleGet(http_request message) {
 				response["streamFiles"] = temp;
 			}
 			message.reply(status_codes::OK, response);
+			LOG_NOTI("get stream profile - result : %d, \n - request : %s \n - response: %s ", result, uri::decode(message.relative_uri().path()).c_str(), response.serialize().c_str());
 		}
 		else if(path[URL_Separator::instances] == "instances")
 		{
@@ -87,7 +89,7 @@ void StreamController::handleGet(http_request message) {
 				int idx = 0;
 
 				std::vector<StreamState> list;
-				result = gls_interface->update_status(&list);
+				result = get_streamer()->update_status(&list, appname);
 				for( auto stream : list)
 				{
 					ProfileStatusListV0 status = ProfileStatusListV0(stream.url, false, serverInfo->appInstance,
@@ -108,6 +110,7 @@ void StreamController::handleGet(http_request message) {
 			{
 				message.reply(status_codes::InternalError, response);
 			}
+			LOG_NOTI("select stream profile - result : %d, \n - request : %s \n - response: %s ", result, uri::decode(message.relative_uri().path()).c_str(), response.serialize().c_str());
 		}
 		else
 		{
@@ -135,6 +138,7 @@ void StreamController::handlePut(http_request message) {
 			if(path[URL_Separator::streamfiles] == "streamfiles")
 			{
 				auto camid = path[URL_Separator::camid];
+				auto appname = path[URL_Separator::application];
 				if(path[URL_Separator::adv] == "adv")
 				{
 					std::string uri;
@@ -148,8 +152,8 @@ void StreamController::handlePut(http_request message) {
 					}
 					if(!uri.empty())
 					{
-						result = get_streamer()->modify_stream(camid+".stream", uri.c_str());
-						LOG_NOTI("modify/start stream profile camid :[%s], IP: [%s], MSG: [%s]", camid.c_str(), message.remote_address().c_str(), value.serialize().c_str());
+						result = get_streamer()->modify_stream(camid+".stream", appname, uri.c_str());
+						LOG_NOTI("modify/start stream profile camid :[%s], IP: [%s], MSG: [%s] \n URI: %s", camid.c_str(), message.remote_address().c_str(), value.serialize().c_str(), uri.c_str());
 						response = make_response(result, utility::string_t(""), streamProfileModify.asJson());
 					}
 					else
@@ -164,7 +168,7 @@ void StreamController::handlePut(http_request message) {
 						auto paramMap = parseQuery(message);
 						LOG_NOTI("connect stream profile camid :[%s], IP: [%s], MSG: [%s/%s/%s]",camid.c_str(), message.remote_address().c_str(), paramMap["connectAppName"].c_str(), paramMap["appInstance"].c_str(), paramMap["mediaCasterType"].c_str());
 						StreamProfileConnect streamProfileConnect = StreamProfileConnect(paramMap["connectAppName"], paramMap["appInstance"], paramMap["mediaCasterType"]);
-						result = get_streamer()->start_stream(camid+".stream");
+						result = get_streamer()->start_stream(camid+".stream", appname);
 						response = make_response(result, streamProfileConnect.getResultMsg() + camid + ".stream", json::value::null());
 					}
 				}
@@ -176,6 +180,7 @@ void StreamController::handlePut(http_request message) {
 			else if(path[URL_Separator::instances] == "instances")
 			{
 				auto stream_filename = path[URL_Separator::profile_name];
+				auto appname = path[URL_Separator::application];
 				if(path[URL_Separator::incomingstreams] == "incomingstreams")
 				{
 					if(path[URL_Separator::actions] == "actions")
@@ -184,7 +189,7 @@ void StreamController::handlePut(http_request message) {
 						{
 							LOG_NOTI("disconnect stream profile streamfile :[%s], IP: [%s]",stream_filename.c_str(), message.remote_address().c_str());
 							StreamProfileDisConnect streamProfileDisConnect = StreamProfileDisConnect();
-							result = get_streamer()->stop_stream(stream_filename);
+							result = get_streamer()->stop_stream(stream_filename, appname);
 							response = make_response(result, streamProfileDisConnect.getResultMsg() + stream_filename, json::value::null());
 						}
 					}
@@ -193,16 +198,17 @@ void StreamController::handlePut(http_request message) {
 				{
 					if(path[URL_Separator::actions] == "actions")
 					{
+						auto appname = path[URL_Separator::application];
 						if(path[URL_Separator::cmd] == "stopRecording")
 						{
 							LOG_NOTI("stop recording camid :[%s], IP: [%s]", stream_filename.c_str(), message.remote_address().c_str());
-							result = get_streamer()->stop_record(stream_filename);
+							result = get_streamer()->stop_record(stream_filename, appname);
 							response = make_response(result, "Recording (" + stream_filename + ") stopped", json::value::null());
 						}
 						else if(path[URL_Separator::cmd] == "splitRecording")
 						{
 							LOG_NOTI("split recording camid :[%s], IP: [%s]", stream_filename.c_str(), message.remote_address().c_str());
-							result = get_streamer()->split_record(stream_filename);
+							result = get_streamer()->split_record(stream_filename, appname);
 							response = make_response(result, "Recording (" + stream_filename + ") split", json::value::null());
 						}
 					}
@@ -245,9 +251,10 @@ void StreamController::handlePost(http_request message) {
 			if(path[URL_Separator::streamfiles] == "streamfiles")
 			{
 				auto camid = path[URL_Separator::camid];
+				auto appname = path[URL_Separator::application];
 				LOG_NOTI("create stream profile camid:[%s], IP: [%s], MSG: [%s]",camid.c_str(), message.remote_address().c_str(), value.serialize().c_str());
 				StreamProfile streamprofile = glsm::StreamProfile::fromJson(value);
-				result = get_streamer()->create_stream(camid+".stream");
+				result = get_streamer()->create_stream(camid+".stream", appname);
 				response = make_response(result, utility::string_t(""), streamprofile.asJson());
 			}
 			else if(path[URL_Separator::instances] == "instances")
@@ -255,9 +262,11 @@ void StreamController::handlePost(http_request message) {
 				if(path[URL_Separator::streamrecorders] == "streamrecorders")
 				{
 					auto profileName = path[URL_Separator::profile_name];
+					auto appname = path[URL_Separator::application];
 					LOG_NOTI("record stream profile camid :[%s], IP: [%s], MSG: [%s]", profileName.c_str(), message.remote_address().c_str(), value.serialize().c_str());
 					RecordParameters recordParameters = glsm::RecordParameters::fromJson(value);
-					result = get_streamer()->start_record(profileName, &recordParameters);
+					result = get_streamer()->start_record(profileName, appname, &recordParameters);
+					LOG_NOTI("Start record profile - result : %d, \n - request : %s \n - response: %s ", result, uri::decode(message.relative_uri().path()).c_str(), response.serialize().c_str());
 					response = make_response(result, recordParameters.getResultMsg(), json::value::null());
 				}
 			}
@@ -294,8 +303,9 @@ void StreamController::handleDelete(http_request message) {
 			if(path[URL_Separator::streamfiles] == "streamfiles")
 			{
 				auto camid = path[URL_Separator::camid];
+				auto appname = path[URL_Separator::application];
 				LOG_NOTI("delete stream profile camid:[%s], IP: [%s], MSG: [%s]",camid.c_str(), message.remote_address().c_str(), value.serialize().c_str());
-				result = get_streamer()->delete_stream(camid+".stream");
+				result = get_streamer()->delete_stream(camid+".stream", appname);
 				response = make_response(result, utility::string_t(""), web::json::value::null());
 			}
 		}
