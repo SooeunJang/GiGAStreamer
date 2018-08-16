@@ -22,8 +22,10 @@ struct _StreamingObject
   GObject parent_instance;
 
   gchar *object_name;
+  gchar *application;
   gchar *rtsp_url;
   gchar *record_path;
+  gchar *record_file_name;
   guint64 record_max_size;
   guint record_max_files;
 
@@ -36,8 +38,10 @@ G_DEFINE_TYPE (StreamingObject, streaming_object, G_TYPE_OBJECT)
 enum
 {
   PROP_OBJECT_NAME = 1,
+  PROP_APPLICATION,
   PROP_RTSP_URL,
   PROP_RECORD_PATH,
+  PROP_RECORD_FILE_NAME,
   PROP_RECORD_MAX_SIZE,
   PROP_RECORD_MAX_FILES,
   N_PROPERTIES
@@ -73,6 +77,11 @@ streaming_object_set_property (GObject      *object,
       self->object_name = g_value_dup_string (value);
       break;
 
+    case PROP_APPLICATION:
+      g_free (self->application);
+      self->application = g_value_dup_string (value);
+      break;
+
     case PROP_RTSP_URL:
       g_free (self->rtsp_url);
       self->rtsp_url = g_value_dup_string (value);
@@ -81,6 +90,11 @@ streaming_object_set_property (GObject      *object,
     case PROP_RECORD_PATH:
       g_free (self->record_path);
       self->record_path = g_value_dup_string (value);
+      break;
+
+    case PROP_RECORD_FILE_NAME:
+      g_free (self->record_file_name);
+      self->record_file_name = g_value_dup_string (value);
       break;
 
     case PROP_RECORD_MAX_SIZE:
@@ -112,12 +126,20 @@ streaming_object_get_property (GObject    *object,
       g_value_set_string (value, self->object_name);
       break;
 
+    case PROP_APPLICATION:
+      g_value_set_string (value, self->application);
+      break;
+
     case PROP_RTSP_URL:
       g_value_set_string (value, self->rtsp_url);
       break;
 
     case PROP_RECORD_PATH:
       g_value_set_string (value, self->record_path);
+      break;
+
+    case PROP_RECORD_FILE_NAME:
+      g_value_set_string (value, self->record_file_name);
       break;
 
     case PROP_RECORD_MAX_SIZE:
@@ -151,8 +173,10 @@ streaming_object_finalize (GObject *gobject)
   StreamingObject *obj = STREAMING_OBJECT (gobject);
 
   g_free (obj->object_name);
+  g_free (obj->application);
   g_free (obj->rtsp_url);
   g_free (obj->record_path);
+  g_free (obj->record_file_name);
 
   /* Always chain up to the parent class; as with dispose(), finalize()
    * is guaranteed to exist on the parent's class virtual function table
@@ -178,6 +202,13 @@ streaming_object_class_init (StreamingObjectClass *klass)
                            NULL  /* default value */,
                            G_PARAM_READWRITE);
 
+  obj_properties[PROP_APPLICATION] =
+      g_param_spec_string ("application",
+                           "Application Name",
+                           "Application Name.",
+                           NULL  /* default value */,
+                           G_PARAM_READWRITE);
+
   obj_properties[PROP_RTSP_URL] =
       g_param_spec_string ("rtsp-url",
                            "RTSP URL",
@@ -189,6 +220,13 @@ streaming_object_class_init (StreamingObjectClass *klass)
       g_param_spec_string ("record-path",
                            "Record Path",
                            "Path of record files to save.",
+                           NULL  /* default value */,
+                           G_PARAM_READWRITE);
+
+  obj_properties[PROP_RECORD_FILE_NAME] =
+      g_param_spec_string ("record-file-name",
+                           "Record File name",
+                           "Name of record files to save.",
                            NULL  /* default value */,
                            G_PARAM_READWRITE);
 
@@ -242,8 +280,8 @@ streaming_object_class_init (StreamingObjectClass *klass)
 static void
 streaming_object_init (StreamingObject *self)
 {
-  // /* initialize all public and private members to reasonable default values.
-  //  * They are all automatically initialized to 0 to begin with. */
+  /* initialize all public and private members to reasonable default values.
+   * They are all automatically initialized to 0 to begin with. */
 }
 
 StreamingObject *
@@ -265,14 +303,15 @@ streaming_object_start (StreamingObject  *self,
   g_return_val_if_fail (error == NULL || *error == NULL, false);
 
   gchar shm_path[1024];
-  g_sprintf (shm_path, "/tmp/%s", self->object_name);
+  g_sprintf (shm_path, "/tmp/%s/%s", self->application, self->object_name);
   g_remove (shm_path);
 
   gchar cmd[1024];
   g_sprintf (cmd,
-             "rtspsrc name=rtspsrc-%s location=%s protocols=tcp latency=500 is-live=true"
-             " ! shmsink socket-path=/tmp/%s shm-size=10000000 wait-for-connection=false",
-             self->object_name, self->rtsp_url, self->object_name);
+             "rtspsrc name=%s-%s-src location=%s protocols=tcp latency=500 is-live=true"
+             " ! application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264"
+             " ! shmsink socket-path=%s shm-size=10000000 wait-for-connection=false",
+             self->application, self->object_name, self->rtsp_url, shm_path);
   self->stream_pipeline = gst_parse_launch (cmd, NULL);
 
   GstBus *bus = gst_element_get_bus (self->stream_pipeline);
@@ -349,22 +388,24 @@ streaming_object_record (StreamingObject *self,
 {
   g_return_val_if_fail (STREAMING_IS_OBJECT (self), false);
   g_return_val_if_fail (error == NULL || *error == NULL, false);
-  g_return_val_if_fail (self->stream_pipeline != NULL &&
-                        get_pipeline_state (self->stream_pipeline) == GST_STATE_PLAYING &&
-                        self->record_pipeline == NULL,
-                        false);
+  g_return_val_if_fail (self->stream_pipeline != NULL, false);
+  g_return_val_if_fail (get_pipeline_state (self->stream_pipeline) == GST_STATE_PLAYING, false);
+  g_return_val_if_fail (self->record_pipeline == NULL, false);
 
   gchar location[1024];
-  set_record_location (location, self->record_path, self->object_name);
+  set_record_location (location, self->record_path, self->record_file_name);
+
+  gchar shm_path[1024];
+  g_sprintf (shm_path, "/tmp/%s/%s", self->application, self->object_name);
 
   gchar cmd[1024];
   g_sprintf (cmd,
-             "shmsrc socket-path=/tmp/%s do-timestamp=true is-live=true"
+             "shmsrc socket-path=%s do-timestamp=true is-live=true"
              " ! application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264"
              " ! rtph264depay"
              " ! h264parse"
              " ! splitmuxsink name=recorder max-size-time=%lu max_files=%u location=%s",
-             self->object_name, self->record_max_size, self->record_max_files, location);
+             shm_path, self->record_max_size, self->record_max_files, location);
   self->record_pipeline = gst_parse_launch (cmd, NULL);
 
   GstBus *bus = gst_element_get_bus (self->record_pipeline);
@@ -449,7 +490,13 @@ get_pipeline_state (GstElement *pipeline)
   g_print ("get state: from %s to %s\n",
            gst_element_state_get_name (old_state),
            gst_element_state_get_name (new_state));
-  return old_state;
+
+  if (new_state == GST_STATE_VOID_PENDING)
+  {
+    return old_state;
+  }
+
+  return new_state;
 }
 
 static void
@@ -466,9 +513,6 @@ cb_message (GstBus *bus, GstMessage *msg, StreamingObject *self)
       g_free (debug);
 
       g_signal_emit (self, obj_signals[SIG_ERROR], 0);
-
-      streaming_object_stop (self, NULL);
-      streaming_object_start (self, NULL);
     } break;
 
     case GST_MESSAGE_EOS:
@@ -541,7 +585,7 @@ cb_message (GstBus *bus, GstMessage *msg, StreamingObject *self)
                      "splitmuxsink-fragment-closed") == 0)
       {
         gchar location[1024];
-        set_record_location (location, self->record_path, self->object_name);
+        set_record_location (location, self->record_path, self->record_file_name);
         GstElement *sink = gst_bin_get_by_name (GST_BIN (self->record_pipeline), "recorder");
         g_object_set (sink, "location", &location, NULL);
         g_object_unref (sink);
