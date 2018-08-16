@@ -25,7 +25,6 @@ struct _StreamingObject
   gchar *application;
   gchar *rtsp_url;
   gchar *record_path;
-  gchar *record_file_name;
   guint64 record_max_size;
   guint record_max_files;
 
@@ -41,7 +40,6 @@ enum
   PROP_APPLICATION,
   PROP_RTSP_URL,
   PROP_RECORD_PATH,
-  PROP_RECORD_FILE_NAME,
   PROP_RECORD_MAX_SIZE,
   PROP_RECORD_MAX_FILES,
   N_PROPERTIES
@@ -92,11 +90,6 @@ streaming_object_set_property (GObject      *object,
       self->record_path = g_value_dup_string (value);
       break;
 
-    case PROP_RECORD_FILE_NAME:
-      g_free (self->record_file_name);
-      self->record_file_name = g_value_dup_string (value);
-      break;
-
     case PROP_RECORD_MAX_SIZE:
       self->record_max_size = g_value_get_uint64 (value);
       break;
@@ -138,10 +131,6 @@ streaming_object_get_property (GObject    *object,
       g_value_set_string (value, self->record_path);
       break;
 
-    case PROP_RECORD_FILE_NAME:
-      g_value_set_string (value, self->record_file_name);
-      break;
-
     case PROP_RECORD_MAX_SIZE:
       g_value_set_uint64 (value, self->record_max_size);
       break;
@@ -176,7 +165,6 @@ streaming_object_finalize (GObject *gobject)
   g_free (obj->application);
   g_free (obj->rtsp_url);
   g_free (obj->record_path);
-  g_free (obj->record_file_name);
 
   /* Always chain up to the parent class; as with dispose(), finalize()
    * is guaranteed to exist on the parent's class virtual function table
@@ -220,13 +208,6 @@ streaming_object_class_init (StreamingObjectClass *klass)
       g_param_spec_string ("record-path",
                            "Record Path",
                            "Path of record files to save.",
-                           NULL  /* default value */,
-                           G_PARAM_READWRITE);
-
-  obj_properties[PROP_RECORD_FILE_NAME] =
-      g_param_spec_string ("record-file-name",
-                           "Record File name",
-                           "Name of record files to save.",
                            NULL  /* default value */,
                            G_PARAM_READWRITE);
 
@@ -393,7 +374,7 @@ streaming_object_record (StreamingObject *self,
   g_return_val_if_fail (self->record_pipeline == NULL, false);
 
   gchar location[1024];
-  set_record_location (location, self->record_path, self->record_file_name);
+  set_record_location (location, self->record_path, self->object_name);
 
   gchar shm_path[1024];
   g_sprintf (shm_path, "/tmp/%s/%s", self->application, self->object_name);
@@ -585,7 +566,7 @@ cb_message (GstBus *bus, GstMessage *msg, StreamingObject *self)
                      "splitmuxsink-fragment-closed") == 0)
       {
         gchar location[1024];
-        set_record_location (location, self->record_path, self->record_file_name);
+        set_record_location (location, self->record_path, self->object_name);
         GstElement *sink = gst_bin_get_by_name (GST_BIN (self->record_pipeline), "recorder");
         g_object_set (sink, "location", &location, NULL);
         g_object_unref (sink);
