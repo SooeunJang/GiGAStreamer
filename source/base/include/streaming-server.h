@@ -31,23 +31,26 @@ G_DECLARE_FINAL_TYPE (StreamingServer, streaming_server, STREAMING, SERVER, GObj
 StreamingServer *streaming_server_new (void);
 void streaming_server_unref (StreamingServer *);
 
-gboolean streaming_server_start (StreamingServer  *self,
-                                 GError           **error);
-void streaming_server_stop (StreamingServer  *self,
-                            GError           **error);
+gboolean streaming_server_start (StreamingServer *self,
+                                 GError          **error);
+void streaming_server_stop (StreamingServer *self,
+                            GError          **error);
 
-StreamingObject *streaming_session_new (StreamingServer  *self,
-                                        const gchar      *name,
-                                        const GPtrArray  *mount,
-                                        GError           **error);
-void streaming_session_unref (StreamingServer  *self,
-                              const gchar      *name,
-                              GError           **error);
-StreamingObject *streaming_session_get (StreamingServer  *self,
-                                        const gchar      *name,
-                                        GError           **error);
-GList *streaming_session_list (StreamingServer  *self,
-                               GError           **error);
+StreamingObject *streaming_session_new (StreamingServer *self,
+                                        const gchar     *application,
+                                        const gchar     *name,
+                                        GError          **error);
+void streaming_session_unref (StreamingServer *self,
+                              const gchar     *application,
+                              const gchar     *name,
+                              GError          **error);
+StreamingObject *streaming_session_get (StreamingServer *self,
+                                        const gchar     *application,
+                                        const gchar     *name,
+                                        GError          **error);
+GList *streaming_session_list (StreamingServer *self,
+                               const gchar     *application,
+                               GError          **error);
 
 G_END_DECLS
 
