@@ -12,6 +12,8 @@
 
 #include "streaming-object.h"
 
+#include <fcntl.h>
+
 #include <glib.h>
 #include <glib/gprintf.h>
 #include <glib/gstdio.h>
@@ -558,21 +560,40 @@ cb_message (GstBus *bus, GstMessage *msg, StreamingObject *self)
       //          gst_element_state_get_name (new_state));
     } break;
 
-    case GST_MESSAGE_ELEMENT:
+    case GST_MESSAGE_ELEMENT: {
       g_message ("[%s] Get Message: %s", self->object_name,
                  gst_structure_get_name (gst_message_get_structure(msg)));
 
       if (g_strcmp0 (gst_structure_get_name (gst_message_get_structure (msg)),
-                     "splitmuxsink-fragment-closed") == 0)
+                     "splitmuxsink-fragment-opened") == 0)
       {
-        gchar location[1024];
-        set_record_location (location, self->record_path, self->object_name);
         GstElement *sink = gst_bin_get_by_name (GST_BIN (self->record_pipeline), "recorder");
-        g_object_set (sink, "location", &location, NULL);
+        gchar *location;
+        g_object_get (sink, "location", &location, NULL);
+        gchar *tmp_location = g_strconcat (location, ".tmp", NULL);
+        g_free (location);
+        g_open (tmp_location, O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
         g_object_unref (sink);
+        g_free (tmp_location);
       }
 
-      break;
+      if (g_strcmp0 (gst_structure_get_name (gst_message_get_structure (msg)),
+                     "splitmuxsink-fragment-closed") == 0)
+      {
+        GstElement *sink = gst_bin_get_by_name (GST_BIN (self->record_pipeline), "recorder");
+        gchar *location;
+        g_object_get (sink, "location", &location, NULL);
+        gchar *tmp_location = g_strconcat (location, ".tmp", NULL);
+        g_free (location);
+        g_remove (tmp_location);
+        g_free (tmp_location);
+
+        gchar new_location[1024];
+        set_record_location (new_location, self->record_path, self->object_name);
+        g_object_set (sink, "location", &new_location, NULL);
+        g_object_unref (sink);
+      }
+    } break;
 
     default:
       /* Unhandled message */
